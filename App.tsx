@@ -1,20 +1,65 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  View,
+} from "react-native";
 
-export default function App() {
+import { AuthProvider } from "./src/contexts/AuthContext";
+import { useAuth } from "./src/hooks/useAuth";
+
+import LoginScreen from "./src/screens/LoginScreen";
+import RegisterScreen from "./src/screens/RegisterScreen";
+
+const AppContent = () => {
+  const { user, loading } = useAuth();
+  const [showRegister, setShowRegister] = useState<boolean>(false);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    if (showRegister) {
+      return (
+        <RegisterScreen
+          onBackToLogin={() => setShowRegister(false)}
+        />
+      );
+    }
+
+    return (
+      <LoginScreen
+        onRegister={() => setShowRegister(true)}
+      />
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" />
     </View>
   );
-}
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default App;
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
