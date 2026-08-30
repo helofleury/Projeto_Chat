@@ -10,6 +10,10 @@ import { useAuth } from "./src/hooks/useAuth";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
+import UsersScreen from "./src/screens/UsersScreen";
+
+import { logout } from "./src/services/authService";
+import type { ChatUser } from "./src/types/user";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -39,10 +43,19 @@ const AppContent = () => {
     );
   }
 
+  const handleSelectUser = (selectedUser: ChatUser): void => {
+    console.log("Usuário selecionado:", selectedUser);
+  };
+
+  const handleLogout = async (): Promise<void> => {
+    await logout();
+  };
+
   return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" />
-    </View>
+    <UsersScreen
+      onSelectUser={handleSelectUser}
+      onLogout={handleLogout}
+    />
   );
 };
 
