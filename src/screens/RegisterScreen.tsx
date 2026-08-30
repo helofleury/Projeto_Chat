@@ -1,7 +1,6 @@
 import { useState, type FC } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +11,12 @@ import {
   View,
 } from "react-native";
 
-import { registerWithEmail } from "../services/authService";
+import {
+  getAuthErrorMessage,
+  registerWithEmail,
+} from "../services/authService";
+
+import ErrorMessage from "../components/ErrorMessage";
 
 type RegisterScreenProps = {
   onBackToLogin: () => void;
@@ -25,19 +29,18 @@ const RegisterScreen: FC<RegisterScreenProps> = ({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
   const handleRegister = async (): Promise<void> => {
+    setError("");
+
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert(
-        "Campos obrigatórios",
-        "Preencha nome, e-mail e senha."
-      );
+      setError("Preencha nome, e-mail e senha.");
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert(
-        "Senha inválida",
+      setError(
         "A senha deve possuir pelo menos 6 caracteres."
       );
       return;
@@ -52,15 +55,18 @@ const RegisterScreen: FC<RegisterScreenProps> = ({
         password
       );
 
-      Alert.alert(
-        "Cadastro realizado",
-        "Sua conta foi criada com sucesso."
-      );
-    } catch {
-      Alert.alert(
-        "Erro no cadastro",
-        "Não foi possível criar a conta. Verifique os dados informados."
-      );
+      // Não precisa de alerta de sucesso: assim que a conta é
+      // criada, o `onAuthStateChanged` (AuthContext) detecta o
+      // login automático e o app já navega sozinho para a
+      // tela de Contatos.
+    } catch (err) {
+      // IMPORTANTE: mostramos a mensagem real do erro (via
+      // getAuthErrorMessage), em vez de sempre exibir "dados
+      // inválidos". Isso evita reportar uma conta válida como
+      // inválida quando o problema real é outro (e-mail já
+      // cadastrado, falha de rede, permissão do banco etc.).
+      console.error("Erro no cadastro:", err);
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -84,6 +90,8 @@ const RegisterScreen: FC<RegisterScreenProps> = ({
         <Text style={styles.subtitle}>
           Cadastre-se para começar a conversar
         </Text>
+
+        {!!error && <ErrorMessage message={error} />}
 
         <TextInput
           style={styles.input}

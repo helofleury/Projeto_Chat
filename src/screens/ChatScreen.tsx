@@ -13,27 +13,31 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useChat } from "../hooks/useChat";
 
+import { getProviderLabel } from "../utils/chatRules";
+
 import ChatInput from "../components/ChatInput";
 import ChatMessage from "../components/ChatMessage";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 
+import type { ChatUser } from "../types/user";
+
 type ChatScreenProps = {
+  partner: ChatUser;
   onBack: () => void;
 };
 
-const ChatScreen: FC<ChatScreenProps> = ({ onBack }) => {
+const ChatScreen: FC<ChatScreenProps> = ({ partner, onBack }) => {
   const { user } = useAuth();
 
   const {
     conversation,
     messages,
-    partner,
     loading,
     sending,
     error,
     send,
-  } = useChat();
+  } = useChat(partner);
 
   if (!user) {
     return (
@@ -51,38 +55,8 @@ const ChatScreen: FC<ChatScreenProps> = ({ onBack }) => {
     );
   }
 
-  if (loading) {
+  if (loading || !conversation) {
     return <Loading message="Carregando conversa..." />;
-  }
-
-  if (!conversation || !partner) {
-    return (
-      <View style={styles.center}>
-        <View style={styles.emptyIcon}>
-          <Text style={styles.emptyIconText}>💬</Text>
-        </View>
-
-        <Text style={styles.emptyTitle}>
-          Aguardando conexão
-        </Text>
-
-        <Text style={styles.emptyText}>
-          Ainda não encontramos alguém compatível
-          para conversar com você.
-        </Text>
-
-        <Text style={styles.emptySubtext}>
-          Peça para a outra pessoa entrar no app
-          e volte aqui em seguida.
-        </Text>
-
-        <Pressable style={styles.primaryButton} onPress={onBack}>
-          <Text style={styles.primaryButtonText}>
-            Voltar
-          </Text>
-        </Pressable>
-      </View>
-    );
   }
 
   return (
@@ -115,17 +89,10 @@ const ChatScreen: FC<ChatScreenProps> = ({ onBack }) => {
             <View style={styles.onlineDot} />
 
             <Text style={styles.provider}>
-              Online
+              {getProviderLabel(partner.provider)}
             </Text>
           </View>
         </View>
-
-        <Pressable
-          onPress={onBack}
-          style={styles.menuButton}
-        >
-          <Text style={styles.menuText}>•••</Text>
-        </Pressable>
       </View>
 
       {/* ERROR */}
@@ -278,20 +245,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-  menuButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  menuText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#6B7280",
-    letterSpacing: 1,
-  },
-
   /* MESSAGES */
 
   messagesList: {
@@ -372,54 +325,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
   },
 
-  emptyTitle: {
-    fontSize: 21,
-    fontWeight: "700",
-    color: "#171923",
-    textAlign: "center",
-  },
-
-  emptyText: {
-    marginTop: 12,
-    color: "#5F636D",
-    textAlign: "center",
-    lineHeight: 22,
-    fontSize: 14,
-    maxWidth: 320,
-  },
-
-  emptySubtext: {
-    marginTop: 6,
-    color: "#8A8E98",
-    textAlign: "center",
-    lineHeight: 20,
-    fontSize: 13,
-    maxWidth: 300,
-  },
-
   /* BUTTON */
-
-  primaryButton: {
-    marginTop: 26,
-    backgroundColor: "#6C63FF",
-    paddingHorizontal: 32,
-    paddingVertical: 13,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#6C63FF",
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-  },
-
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
 
   backButton: {
     marginTop: 20,

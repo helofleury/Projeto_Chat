@@ -102,30 +102,49 @@ export const sendMessage = async (
 
 export const listenToMessages = (
   conversationId: string,
-  callback: (messages: ChatMessage[]) => void
+  callback: (messages: ChatMessage[]) => void,
+  onError?: (error: Error) => void
 ): (() => void) => {
   const messagesRef = ref(
     db,
     `messages/${conversationId}`
   );
 
-  const unsubscribe = onValue(messagesRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback([]);
-      return;
+  // IMPORTANTE: passamos um callback de erro pro `onValue`.
+  // Sem ele, se o Realtime Database recusar a leitura (ex.:
+  // regras de segurança sem permissão para o path
+  // `messages/{conversationId}`), a escuta falha em SILÊNCIO —
+  // o callback de sucesso simplesmente nunca é chamado de
+  // novo, as mensagens não aparecem/atualizam, e nenhum erro
+  // chega à tela.
+  const unsubscribe = onValue(
+    messagesRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
+
+      const data = snapshot.val() as Record<
+        string,
+        ChatMessage
+      >;
+
+      const messages = Object.values(data).sort(
+        (a, b) => a.createdAt - b.createdAt
+      );
+
+      callback(messages);
+    },
+    (error) => {
+      console.error(
+        "Erro ao escutar mensagens (verifique as regras do Realtime Database em `messages`):",
+        error
+      );
+
+      onError?.(error as unknown as Error);
     }
-
-    const data = snapshot.val() as Record<
-      string,
-      ChatMessage
-    >;
-
-    const messages = Object.values(data).sort(
-      (a, b) => a.createdAt - b.createdAt
-    );
-
-    callback(messages);
-  });
+  );
 
   return unsubscribe;
 };

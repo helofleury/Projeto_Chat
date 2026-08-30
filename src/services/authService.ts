@@ -14,6 +14,34 @@ import { createUser } from "./userService";
 
 import type { AuthProvider } from "../types/user";
 
+/**
+ * Grava (ou atualiza) o registro do usuário em `users/{uid}`
+ * sem deixar uma falha nessa escrita ser confundida com uma
+ * falha de autenticação.
+ *
+ * IMPORTANTE: nesse ponto o Firebase Auth já validou as
+ * credenciais com sucesso. Se essa gravação falhar (ex.: as
+ * regras de segurança do Realtime Database ainda não
+ * permitem escrita para o usuário autenticado), o app NÃO
+ * deve reportar isso como "e-mail ou senha inválidos" — é um
+ * problema diferente (sincronização com o banco), então só
+ * avisamos no console em vez de derrubar o login/cadastro.
+ */
+const syncUserRecord = async (
+  user: Parameters<typeof createUser>[0]
+): Promise<void> => {
+  try {
+    await createUser(user);
+  } catch (dbError) {
+    console.warn(
+      "Login/cadastro autenticado com sucesso, mas não foi " +
+        "possível sincronizar o usuário no Realtime Database. " +
+        "Verifique as regras de segurança do banco.",
+      dbError
+    );
+  }
+};
+
 export const registerWithEmail = async (
   name: string,
   email: string,
@@ -30,7 +58,7 @@ export const registerWithEmail = async (
     displayName: name,
   });
 
-  await createUser({
+  await syncUserRecord({
     uid: credential.user.uid,
     name,
     email: credential.user.email,
@@ -56,7 +84,7 @@ export const loginWithEmail = async (
   // não foi salvo no cadastro (ex.: falha de rede logo
   // após criar a conta), essa pessoa nunca aparece como
   // parceiro de conversa para o outro usuário.
-  await createUser({
+  await syncUserRecord({
     uid: credential.user.uid,
     name:
       credential.user.displayName ??
@@ -86,7 +114,7 @@ export const loginWithGoogle = async (
       credential
     );
 
-  await createUser({
+  await syncUserRecord({
     uid: result.user.uid,
     name:
       result.user.displayName ??
@@ -136,7 +164,7 @@ export const loginWithApple = async (
     });
   }
 
-  await createUser({
+  await syncUserRecord({
     uid: result.user.uid,
     name:
       fullName ??
@@ -168,4 +196,59 @@ export const getAuthProvider = (
   }
 
   return "password";
+};
+
+/**
+ * Traduz um erro (do Firebase Auth ou de qualquer outra
+ * etapa do fluxo de login/cadastro) para uma mensagem
+ * compreensível em português.
+ *
+ * Propositalmente NÃO existe um "catch-all" genérico do tipo
+ * "e-mail ou senha inválidos" pra qualquer erro não mapeado:
+ * isso é exatamente o que fazia credenciais corretas
+ * parecerem inválidas quando o problema era outro (rede,
+ * permissão do banco etc.). Erros não mapeados mostram a
+ * mensagem original, que ajuda a diagnosticar a causa real.
+ */
+export const getAuthErrorMessage = (
+  error: unknown
+): string => {
+  const code = (error as { code?: string } | null)?.code;
+
+  switch (code) {
+    case "auth/invalid-email":
+      return "O e-mail informado não é válido.";
+
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+      return "E-mail ou senha inválidos.";
+
+    case "auth/email-already-in-use":
+      return "Já existe uma conta cadastrada com esse e-mail. Tente entrar em vez de cadastrar.";
+
+    case "auth/weak-password":
+      return "A senha deve possuir pelo menos 6 caracteres.";
+
+    case "auth/too-many-requests":
+      return "Muitas tentativas seguidas. Aguarde alguns instantes e tente novamente.";
+
+    case "auth/network-request-failed":
+      return "Falha de conexão com o Firebase. Verifique sua internet e tente novamente.";
+
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "O login foi cancelado.";
+
+    case "auth/operation-not-allowed":
+      return "Esse provedor de login não está ativado no Firebase deste projeto.";
+
+    default:
+      if (error instanceof Error && error.message) {
+        return error.message;
+      }
+
+      return "Não foi possível concluir a operação. Tente novamente.";
+  }
 };

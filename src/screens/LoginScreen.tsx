@@ -6,7 +6,6 @@ import {
 
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,10 +23,13 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 
 import {
+  getAuthErrorMessage,
   loginWithApple,
   loginWithEmail,
   loginWithGoogle,
 } from "../services/authService";
+
+import ErrorMessage from "../components/ErrorMessage";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -47,6 +49,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
   const [isAppleAvailable, setIsAppleAvailable] =
     useState<boolean>(false);
@@ -119,8 +122,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
           setLoading(false);
 
-          Alert.alert(
-            "Erro no login",
+          setError(
             "O Google não retornou o ID token necessário."
           );
 
@@ -129,6 +131,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
         try {
           setLoading(true);
+          setError("");
 
           await loginWithGoogle(idToken);
         } catch (error) {
@@ -137,10 +140,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
             error
           );
 
-          Alert.alert(
-            "Erro no login",
-            "Não foi possível entrar com o Google."
-          );
+          setError(getAuthErrorMessage(error));
         } finally {
           setLoading(false);
         }
@@ -150,12 +150,10 @@ const LoginScreen: FC<LoginScreenProps> = ({
   }, [response]);
 
   const handleLogin = async (): Promise<void> => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert(
-        "Campos obrigatórios",
-        "Preencha o e-mail e a senha."
-      );
+    setError("");
 
+    if (!email.trim() || !password.trim()) {
+      setError("Preencha o e-mail e a senha.");
       return;
     }
 
@@ -167,15 +165,17 @@ const LoginScreen: FC<LoginScreenProps> = ({
         password
       );
     } catch (error) {
+      // IMPORTANTE: mostramos a mensagem real do erro em vez
+      // de sempre exibir "e-mail ou senha inválidos" — isso
+      // evita reportar uma credencial correta como inválida
+      // quando o problema real é outro (rede, permissão do
+      // Realtime Database etc.).
       console.error(
         "Erro no login:",
         error
       );
 
-      Alert.alert(
-        "Erro no login",
-        "E-mail ou senha inválidos."
-      );
+      setError(getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -188,6 +188,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
     try {
       setLoading(true);
+      setError("");
 
       const result = await promptAsync();
 
@@ -209,8 +210,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
       setLoading(false);
 
-      Alert.alert(
-        "Erro no login",
+      setError(
         "Não foi possível iniciar o login com Google."
       );
     }
@@ -223,6 +223,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
     try {
       setLoading(true);
+      setError("");
 
       // A Apple exige um "nonce" pra evitar ataques de replay.
       // Mandamos pra ela o hash (SHA-256) do nonce, e guardamos
@@ -282,10 +283,7 @@ const LoginScreen: FC<LoginScreenProps> = ({
 
       console.error("Erro Apple:", error);
 
-      Alert.alert(
-        "Erro no login",
-        "Não foi possível entrar com a Apple."
-      );
+      setError(getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -311,6 +309,8 @@ const LoginScreen: FC<LoginScreenProps> = ({
         <Text style={styles.subtitle}>
           Entre na sua conta
         </Text>
+
+        {!!error && <ErrorMessage message={error} />}
 
         <TextInput
           style={styles.input}

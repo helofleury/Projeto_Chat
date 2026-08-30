@@ -12,14 +12,6 @@ import {
   sendMessage,
 } from "../services/chatService";
 
-import {
-  getChatPartner,
-  getUserById,
-  listenToUserRecord,
-} from "../services/userService";
-
-import { getAuthProvider } from "../services/authService";
-
 import type {
   ChatMessage,
   Conversation,
@@ -30,14 +22,26 @@ import type { ChatUser } from "../types/user";
 type UseChatReturn = {
   conversation: Conversation | null;
   messages: ChatMessage[];
-  partner: ChatUser | null;
   loading: boolean;
   sending: boolean;
   error: string | null;
   send: (text: string) => Promise<void>;
 };
 
-export const useChat = (): UseChatReturn => {
+/**
+ * Abre (ou cria) a conversa 1 para 1 com o `partner` já
+ * escolhido na tela de Contatos e escuta as mensagens dessa
+ * conversa em tempo real.
+ *
+ * Diferente da versão antiga, este hook não decide sozinho
+ * quem é o parceiro — quem decide é o usuário, na tela de
+ * Contatos. Isso mantém a regra de "chat exclusivamente 1
+ * para 1" (a conversa sempre tem exatamente dois
+ * participantes), mas sem pareamento automático.
+ */
+export const useChat = (
+  partner: ChatUser | null
+): UseChatReturn => {
   const { user } = useAuth();
 
   const [conversation, setConversation] =
@@ -45,9 +49,6 @@ export const useChat = (): UseChatReturn => {
 
   const [messages, setMessages] =
     useState<ChatMessage[]>([]);
-
-  const [partner, setPartner] =
-    useState<ChatUser | null>(null);
 
   const [loading, setLoading] =
     useState<boolean>(true);
@@ -59,129 +60,53 @@ export const useChat = (): UseChatReturn => {
     useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !partner) {
+      setConversation(null);
+      setMessages([]);
       setLoading(false);
       return undefined;
     }
 
     // Evita atualizar o estado depois que o efeito já foi
-    // "desmontado" (ex.: usuário deslogou no meio do processo).
+    // "desmontado" (ex.: usuário voltou pra lista de
+    // contatos ou deslogou no meio do processo).
     let cancelled = false;
 
     let stopMessagesListener:
       | (() => void)
       | undefined;
 
-    let stopUserListener:
-      | (() => void)
-      | undefined;
-
-    /*
-     * Cria/entra na conversa com o parceiro já encontrado e
-     * passa a escutar as mensagens em tempo real.
-     */
-    const openConversationWith = async (
-      chatPartner: ChatUser
-    ): Promise<void> => {
-      const currentConversation =
-        await getOrCreateConversation(
-          user.uid,
-          chatPartner.uid
-        );
-
-      if (cancelled) {
-        return;
-      }
-
-      setPartner(chatPartner);
-      setConversation(currentConversation);
-
-      stopMessagesListener = listenToMessages(
-        currentConversation.id,
-        (newMessages) => {
-          if (!cancelled) {
-            setMessages(newMessages);
-          }
-        }
-      );
-    };
-
     const start = async (): Promise<void> => {
       try {
         setLoading(true);
         setError(null);
+        setMessages([]);
 
-        // Garante que o registro do usuário atual em
-        // `users/{uid}` existe (fica faltando, por
-        // exemplo, se o login for feito em outro
-        // dispositivo antes de qualquer sincronização).
-        let currentChatUser =
-          await getUserById(user.uid);
-
-        if (!currentChatUser) {
-          currentChatUser = {
-            uid: user.uid,
-            name:
-              user.displayName ?? "Usuário",
-            email: user.email,
-            provider: getAuthProvider(user),
-          };
-        }
-
-        // Descobre dinamicamente quem é o outro
-        // participante (não é um UID fixo: pode ser
-        // qualquer pessoa logada com o provider
-        // compatível).
-        const chatPartner =
-          await getChatPartner(currentChatUser);
+        const currentConversation =
+          await getOrCreateConversation(
+            user.uid,
+            partner.uid
+          );
 
         if (cancelled) {
           return;
         }
 
-        if (chatPartner) {
-          await openConversationWith(chatPartner);
-          return;
-        }
+        setConversation(currentConversation);
 
-        /*
-         * Ainda não há ninguém compatível cadastrado (ex.: a
-         * outra pessoa não fez login ainda). Em vez de desistir,
-         * fica escutando o PRÓPRIO registro em tempo real: assim
-         * que a outra pessoa logar, o pareamento é travado do
-         * lado dela (ver `getChatPartner`/`pairUsers`), o que
-         * grava `partnerUid` aqui também — e esse listener
-         * dispara sozinho, sem precisar sair e entrar de novo
-         * no app.
-         */
-        setPartner(null);
-        setConversation(null);
-        setMessages([]);
-
-        stopUserListener = listenToUserRecord(
-          user.uid,
-          (updatedUser) => {
-            if (
-              cancelled ||
-              !updatedUser?.partnerUid
-            ) {
-              return;
+        stopMessagesListener = listenToMessages(
+          currentConversation.id,
+          (newMessages) => {
+            if (!cancelled) {
+              setMessages(newMessages);
             }
-
-            // Já achamos o parceiro: não precisa mais
-            // escutar essa mudança específica.
-            stopUserListener?.();
-            stopUserListener = undefined;
-
-            void getUserById(
-              updatedUser.partnerUid as string
-            ).then((foundPartner) => {
-              if (foundPartner && !cancelled) {
-                void openConversationWith(
-                  foundPartner
-                );
-              }
-            });
+          },
+          (listenError) => {
+            if (!cancelled) {
+              setError(
+                "Não foi possível sincronizar as mensagens em tempo real. Verifique as regras do Realtime Database (leitura/escrita em \"messages\")."
+              );
+            }
           }
         );
       } catch (err) {
@@ -207,16 +132,15 @@ export const useChat = (): UseChatReturn => {
     return () => {
       cancelled = true;
       stopMessagesListener?.();
-      stopUserListener?.();
     };
-  }, [user]);
+  }, [user, partner]);
 
   const send = useCallback(
     async (text: string): Promise<void> => {
       if (
         !user ||
-        !conversation ||
         !partner ||
+        !conversation ||
         !text.trim() ||
         sending
       ) {
@@ -250,8 +174,8 @@ export const useChat = (): UseChatReturn => {
     },
     [
       user,
-      conversation,
       partner,
+      conversation,
       sending,
     ]
   );
@@ -259,7 +183,6 @@ export const useChat = (): UseChatReturn => {
   return {
     conversation,
     messages,
-    partner,
     loading,
     sending,
     error,

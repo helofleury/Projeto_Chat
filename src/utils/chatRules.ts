@@ -1,4 +1,16 @@
-import type { ChatUser } from "../types/user";
+import type { AuthProvider, ChatUser } from "../types/user";
+
+const PROVIDER_LABELS: Record<AuthProvider, string> = {
+  password: "E-mail e senha",
+  google: "Google",
+  apple: "Apple",
+};
+
+export const getProviderLabel = (
+  provider: AuthProvider
+): string => {
+  return PROVIDER_LABELS[provider] ?? provider;
+};
 
 const ALLOWED_PROVIDERS = [
   "password",
