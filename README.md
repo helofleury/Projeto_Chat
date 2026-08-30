@@ -225,6 +225,30 @@ Após iniciar o Expo, é necessário executar o aplicativo em **dois dispositivo
 
 ---
 
+---
+
+# 📸 Execução do Projeto
+
+### 🔵 Usuário Google
+
+Exemplo de um usuário autenticado com uma conta Google realizando uma conversa 1 para 1 em tempo real com outro usuário.
+
+![Usuário Google conversando](./screenshots/google-chat.png)
+
+### 📧 Usuário E-mail e Senha
+
+Exemplo de um usuário autenticado utilizando e-mail e senha realizando uma conversa 1 para 1 em tempo real com outro usuário.
+
+![Usuário E-mail e Senha conversando](./screenshots/email-chat.jpg)
+
+### 👥 Lista de Contatos
+
+Tela de contatos exibindo os usuários disponíveis para iniciar uma conversa, respeitando as regras de comunicação definidas no projeto.
+
+![Lista de contatos](./screenshots/lista-contatos.png)
+
+---
+
 ## 👥 Integrantes
 
 - **Heloísa Fleury Jardim** - RM556378
