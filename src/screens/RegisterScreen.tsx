@@ -2,7 +2,10 @@ import { useState, type FC } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -64,73 +67,90 @@ const RegisterScreen: FC<RegisterScreenProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Criar conta</Text>
-
-      <Text style={styles.subtitle}>
-        Cadastre-se para começar a conversar
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nome"
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="words"
-        autoCorrect={false}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-      />
-
-      <Pressable
-        style={styles.registerButton}
-        onPress={handleRegister}
-        disabled={loading}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={
+        Platform.OS === "ios"
+          ? "padding"
+          : "height"
+      }
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator />
-        ) : (
-          <Text style={styles.registerButtonText}>
-            Criar conta
-          </Text>
-        )}
-      </Pressable>
+        <Text style={styles.title}>Criar conta</Text>
 
-      <Pressable
-        style={styles.backButton}
-        onPress={onBackToLogin}
-        disabled={loading}
-      >
-        <Text style={styles.backText}>
-          Já tenho uma conta
+        <Text style={styles.subtitle}>
+          Cadastre-se para começar a conversar
         </Text>
-      </Pressable>
-    </View>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Nome"
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="E-mail"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Senha"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+
+        <Pressable
+          style={styles.registerButton}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.registerButtonText}>
+              Criar conta
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={styles.backButton}
+          onPress={onBackToLogin}
+          disabled={loading}
+        >
+          <Text style={styles.backText}>
+            Já tenho uma conta
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 export default RegisterScreen;
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  container: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
     backgroundColor: "#FFFFFF",

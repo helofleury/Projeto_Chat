@@ -1,4 +1,5 @@
 import type { FC } from "react";
+
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -17,35 +18,66 @@ import ChatMessage from "../components/ChatMessage";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 
-import type { ChatUser } from "../types/user";
-
 type ChatScreenProps = {
-  selectedUser: ChatUser;
   onBack: () => void;
 };
 
 const ChatScreen: FC<ChatScreenProps> = ({
-  selectedUser,
   onBack,
 }) => {
   const { user } = useAuth();
 
   const {
+    conversation,
     messages,
+    partner,
     loading,
     sending,
     error,
     send,
-  } = useChat(selectedUser);
-
-  if (loading) {
-    return <Loading message="Carregando conversa..." />;
-  }
+  } = useChat();
 
   if (!user) {
     return (
       <View style={styles.center}>
-        <ErrorMessage message="Usuário não autenticado." />
+        <ErrorMessage
+          message="Usuário não autenticado."
+        />
+
+        <Pressable
+          style={styles.backButton}
+          onPress={onBack}
+        >
+          <Text style={styles.backButtonText}>
+            Voltar
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Loading
+        message="Carregando conversa..."
+      />
+    );
+  }
+
+  if (!conversation || !partner) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>
+          Aguardando a outra pessoa
+        </Text>
+
+        <Text style={styles.emptyText}>
+          Ainda não há ninguém compatível
+          cadastrado para conversar com você.
+          Peça para a outra pessoa entrar no
+          app (com Google ou e-mail/senha) e
+          volte aqui em seguida.
+        </Text>
 
         <Pressable
           style={styles.backButton}
@@ -65,33 +97,33 @@ const ChatScreen: FC<ChatScreenProps> = ({
       behavior={
         Platform.OS === "ios"
           ? "padding"
-          : undefined
+          : "height"
       }
       keyboardVerticalOffset={
         Platform.OS === "ios" ? 90 : 0
       }
     >
       <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-
         <View style={styles.headerInfo}>
           <Text style={styles.title}>
-            {selectedUser.name}
+            {partner.name}
           </Text>
 
           <Text style={styles.provider}>
-            {selectedUser.provider === "password"
-              ? "E-mail e senha"
-              : selectedUser.provider === "google"
-                ? "Google"
-                : "Apple"}
+            {partner.provider === "google"
+              ? "Conta Google"
+              : "Conta e-mail/senha"}
           </Text>
         </View>
+
+        <Pressable
+          onPress={onBack}
+          style={styles.logoutButton}
+        >
+          <Text style={styles.logoutText}>
+            Sair
+          </Text>
+        </Pressable>
       </View>
 
       {error && (
@@ -119,8 +151,8 @@ const ChatScreen: FC<ChatScreenProps> = ({
             </Text>
 
             <Text style={styles.emptyText}>
-              Envie uma mensagem para começar a
-              conversa.
+              Envie uma mensagem para começar
+              a conversa.
             </Text>
           </View>
         }
@@ -155,17 +187,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
-  },
-
-  backButton: {
-    padding: 8,
-  },
-
-  backText: {
-    fontSize: 34,
-    lineHeight: 34,
   },
 
   headerInfo: {
@@ -181,6 +205,15 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 13,
     color: "#666666",
+  },
+
+  logoutButton: {
+    padding: 8,
+  },
+
+  logoutText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   messagesList: {
@@ -207,6 +240,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: "#666666",
     textAlign: "center",
+  },
+
+  backButton: {
+    padding: 8,
   },
 
   backButtonText: {

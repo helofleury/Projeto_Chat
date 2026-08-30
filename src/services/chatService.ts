@@ -3,6 +3,7 @@ import {
   onValue,
   push,
   ref,
+  serverTimestamp,
   set,
 } from "firebase/database";
 
@@ -66,19 +67,37 @@ export const sendMessage = async (
   );
 
   const newMessageRef = push(messagesRef);
+  const messageId = newMessageRef.key ?? "";
 
-  const message: ChatMessage = {
-    id: newMessageRef.key ?? "",
+  /*
+   * IMPORTANTE: usamos serverTimestamp() aqui, não
+   * Date.now(). Date.now() usa o relógio do próprio
+   * aparelho — se o celular e o computador estiverem com
+   * horários dessincronizados (bem comum), as mensagens
+   * de cada dispositivo acabam "empilhadas" na ordenação
+   * em vez de intercaladas na ordem real de envio.
+   * serverTimestamp() é substituído pelo Firebase pelo
+   * horário do servidor no momento da escrita, garantindo
+   * uma ordem cronológica real e consistente pros dois
+   * lados da conversa.
+   */
+  await set(newMessageRef, {
+    id: messageId,
+    conversationId,
+    senderId,
+    receiverId,
+    text,
+    createdAt: serverTimestamp(),
+  });
+
+  return {
+    id: messageId,
     conversationId,
     senderId,
     receiverId,
     text,
     createdAt: Date.now(),
   };
-
-  await set(newMessageRef, message);
-
-  return message;
 };
 
 export const listenToMessages = (

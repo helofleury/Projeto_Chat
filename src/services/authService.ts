@@ -50,19 +50,40 @@ export const loginWithEmail = async (
       password
     );
 
+  // Garante (self-heal) que o registro em `users/{uid}`
+  // existe. Sem isso, se por qualquer motivo o registro
+  // não foi salvo no cadastro (ex.: falha de rede logo
+  // após criar a conta), essa pessoa nunca aparece como
+  // parceiro de conversa para o outro usuário.
+  await createUser({
+    uid: credential.user.uid,
+    name:
+      credential.user.displayName ??
+      "Usuário",
+    email: credential.user.email,
+    provider: "password",
+  });
+
   return credential.user;
 };
 
 export const loginWithGoogle = async (
   idToken: string
 ): Promise<User> => {
+  if (!idToken) {
+    throw new Error(
+      "Google ID token não foi informado."
+    );
+  }
+
   const credential =
     GoogleAuthProvider.credential(idToken);
 
-  const result = await signInWithCredential(
-    auth,
-    credential
-  );
+  const result =
+    await signInWithCredential(
+      auth,
+      credential
+    );
 
   await createUser({
     uid: result.user.uid,

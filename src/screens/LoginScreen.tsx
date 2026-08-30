@@ -1,24 +1,134 @@
-import { useState, type FC } from "react";
+import {
+  useEffect,
+  useState,
+  type FC,
+} from "react";
+
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 
-import { loginWithEmail } from "../services/authService";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
+
+import {
+  loginWithEmail,
+  loginWithGoogle,
+} from "../services/authService";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const redirectUri = makeRedirectUri({
+  scheme: "app-chat",
+});
+
+console.log("REDIRECT URI:", redirectUri);
 
 type LoginScreenProps = {
   onRegister: () => void;
 };
 
-const LoginScreen: FC<LoginScreenProps> = ({ onRegister }) => {
+const LoginScreen: FC<LoginScreenProps> = ({
+  onRegister,
+}) => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+
+  const [request, response, promptAsync] =
+    Google.useAuthRequest({
+      webClientId:
+        "268092858690-c6ee0mu2uda5o562rgsmjrd5u0bn9gbf.apps.googleusercontent.com",
+
+      androidClientId:
+        "268092858690-kvegv6mj4vkd95fvida7kpbac30597lq.apps.googleusercontent.com",
+
+      redirectUri,
+
+      responseType: "id_token",
+
+      scopes: [
+        "openid",
+        "profile",
+        "email",
+      ],
+    });
+
+  useEffect(() => {
+    console.log("GOOGLE RESPONSE:", response);
+
+    if (!response) {
+      return;
+    }
+
+    if (response.type !== "success") {
+      console.log(
+        "GOOGLE AUTH NÃO FOI CONCLUÍDO:",
+        response
+      );
+
+      setLoading(false);
+      return;
+    }
+
+    const handleGoogleResponse =
+      async (): Promise<void> => {
+        console.log(
+          "GOOGLE AUTH SUCESSO:",
+          response
+        );
+
+        const idToken =
+          response.authentication?.idToken ??
+          response.params?.id_token;
+
+        if (!idToken) {
+          console.error(
+            "Google não retornou ID token:",
+            response
+          );
+
+          setLoading(false);
+
+          Alert.alert(
+            "Erro no login",
+            "O Google não retornou o ID token necessário."
+          );
+
+          return;
+        }
+
+        try {
+          setLoading(true);
+
+          await loginWithGoogle(idToken);
+        } catch (error) {
+          console.error(
+            "Erro Firebase Google:",
+            error
+          );
+
+          Alert.alert(
+            "Erro no login",
+            "Não foi possível entrar com o Google."
+          );
+        } finally {
+          setLoading(false);
+        }
+      };
+
+    void handleGoogleResponse();
+  }, [response]);
 
   const handleLogin = async (): Promise<void> => {
     if (!email.trim() || !password.trim()) {
@@ -26,6 +136,7 @@ const LoginScreen: FC<LoginScreenProps> = ({ onRegister }) => {
         "Campos obrigatórios",
         "Preencha o e-mail e a senha."
       );
+
       return;
     }
 
@@ -36,7 +147,12 @@ const LoginScreen: FC<LoginScreenProps> = ({ onRegister }) => {
         email.trim(),
         password
       );
-    } catch {
+    } catch (error) {
+      console.error(
+        "Erro no login:",
+        error
+      );
+
       Alert.alert(
         "Erro no login",
         "E-mail ou senha inválidos."
@@ -46,93 +162,149 @@ const LoginScreen: FC<LoginScreenProps> = ({ onRegister }) => {
     }
   };
 
+  const handleGoogleLogin = async (): Promise<void> => {
+    if (!request || loading) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const result = await promptAsync();
+
+      console.log(
+        "GOOGLE PROMPT RESULT:",
+        result
+      );
+
+      if (
+        result.type !== "success"
+      ) {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error(
+        "Erro ao iniciar Google:",
+        error
+      );
+
+      setLoading(false);
+
+      Alert.alert(
+        "Erro no login",
+        "Não foi possível iniciar o login com Google."
+      );
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Chat</Text>
-
-      <Text style={styles.subtitle}>
-        Entre na sua conta
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-      />
-
-      <Pressable
-        style={styles.loginButton}
-        onPress={handleLogin}
-        disabled={loading}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={
+        Platform.OS === "ios"
+          ? "padding"
+          : "height"
+      }
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator />
-        ) : (
-          <Text style={styles.loginButtonText}>
-            Entrar
+        <Text style={styles.title}>
+          Chat
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Entre na sua conta
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="E-mail"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Senha"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          editable={!loading}
+        />
+
+        <Pressable
+          style={styles.loginButton}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.loginButtonText}>
+              Entrar
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={styles.registerButton}
+          onPress={onRegister}
+          disabled={loading}
+        >
+          <Text style={styles.registerText}>
+            Ainda não tenho uma conta
           </Text>
-        )}
-      </Pressable>
+        </Pressable>
 
-      <Pressable
-        style={styles.registerButton}
-        onPress={onRegister}
-        disabled={loading}
-      >
-        <Text style={styles.registerText}>
-          Ainda não tenho uma conta
-        </Text>
-      </Pressable>
+        <View style={styles.divider}>
+          <View style={styles.line} />
 
-      <View style={styles.divider}>
-        <View style={styles.line} />
+          <Text style={styles.dividerText}>
+            ou
+          </Text>
 
-        <Text style={styles.dividerText}>
-          ou
-        </Text>
+          <View style={styles.line} />
+        </View>
 
-        <View style={styles.line} />
-      </View>
-
-      <Pressable
-        style={styles.googleButton}
-        disabled={loading}
-      >
-        <Text style={styles.googleText}>
-          Entrar com Google
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={styles.appleButton}
-        disabled={loading}
-      >
-        <Text style={styles.appleText}>
-          Entrar com Apple
-        </Text>
-      </Pressable>
-    </View>
+        <Pressable
+          style={[
+            styles.googleButton,
+            (!request || loading) &&
+              styles.disabledButton,
+          ]}
+          onPress={handleGoogleLogin}
+          disabled={!request || loading}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.googleText}>
+              Entrar com Google
+            </Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 export default LoginScreen;
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  container: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
     backgroundColor: "#FFFFFF",
@@ -209,7 +381,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
 
   googleText: {
@@ -217,17 +388,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  appleButton: {
-    height: 52,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000000",
-  },
-
-  appleText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+  disabledButton: {
+    opacity: 0.5,
   },
 });

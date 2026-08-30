@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   ActivityIndicator,
   StyleSheet,
@@ -10,14 +11,15 @@ import { useAuth } from "./src/hooks/useAuth";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
-import UsersScreen from "./src/screens/UsersScreen";
+import ChatScreen from "./src/screens/ChatScreen";
 
 import { logout } from "./src/services/authService";
-import type { ChatUser } from "./src/types/user";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
-  const [showRegister, setShowRegister] = useState<boolean>(false);
+
+  const [showRegister, setShowRegister] =
+    useState<boolean>(false);
 
   if (loading) {
     return (
@@ -31,30 +33,29 @@ const AppContent = () => {
     if (showRegister) {
       return (
         <RegisterScreen
-          onBackToLogin={() => setShowRegister(false)}
+          onBackToLogin={() =>
+            setShowRegister(false)
+          }
         />
       );
     }
 
     return (
       <LoginScreen
-        onRegister={() => setShowRegister(true)}
+        onRegister={() =>
+          setShowRegister(true)
+        }
       />
     );
   }
 
-  const handleSelectUser = (selectedUser: ChatUser): void => {
-    console.log("Usuário selecionado:", selectedUser);
-  };
-
-  const handleLogout = async (): Promise<void> => {
-    await logout();
-  };
-
+  /*
+   * Usuário autenticado:
+   * entra diretamente no chat.
+   */
   return (
-    <UsersScreen
-      onSelectUser={handleSelectUser}
-      onLogout={handleLogout}
+    <ChatScreen
+      onBack={logout}
     />
   );
 };
