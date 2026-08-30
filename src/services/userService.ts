@@ -58,7 +58,7 @@ export const getCompatibleUsers = async (
     if (currentUser.provider === "password") {
       return (
         user.provider === "google" ||
-        user.provider === "apple"
+        user.provider === "password"
       );
     }
 

@@ -18,11 +18,9 @@ const UserItem: FC<UserItemProps> = ({
   onPress,
 }) => {
   const providerName =
-    user.provider === "password"
-      ? "E-mail e senha"
-      : user.provider === "google"
-        ? "Google"
-        : "Apple";
+  user.provider === "password"
+    ? "E-mail e senha"
+    : "Google";
 
   return (
     <Pressable

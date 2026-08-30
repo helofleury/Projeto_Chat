@@ -1,4 +1,4 @@
-export type AuthProvider = 'password' | 'google' | 'apple';
+export type AuthProvider = 'password' | 'google';
 
 export type ChatUser = {
   uid: string;
