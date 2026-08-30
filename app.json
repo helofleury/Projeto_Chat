@@ -16,7 +16,9 @@
     },
 
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.heloisa.appchat",
+      "usesAppleSignIn": true
     },
 
     "android": {
@@ -34,7 +36,8 @@
     },
 
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-apple-authentication"
     ]
   }
 }

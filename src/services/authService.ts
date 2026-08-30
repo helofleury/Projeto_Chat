@@ -5,6 +5,7 @@ import {
   signOut,
   updateProfile,
   GoogleAuthProvider,
+  OAuthProvider,
   User,
 } from "firebase/auth";
 
@@ -97,6 +98,57 @@ export const loginWithGoogle = async (
   return result.user;
 };
 
+export const loginWithApple = async (
+  identityToken: string,
+  rawNonce: string,
+  fullName?: string | null
+): Promise<User> => {
+  if (!identityToken) {
+    throw new Error(
+      "Apple identity token não foi informado."
+    );
+  }
+
+  const provider = new OAuthProvider("apple.com");
+
+  const credential = provider.credential({
+    idToken: identityToken,
+    rawNonce,
+  });
+
+  const result =
+    await signInWithCredential(
+      auth,
+      credential
+    );
+
+  /*
+   * IMPORTANTE: a Apple só envia o nome completo (fullName) no
+   * PRIMEIRO login que a pessoa faz no app — nos logins
+   * seguintes esse campo vem null, mesmo que a pessoa tenha
+   * autorizado o compartilhamento antes. Por isso, gravamos o
+   * nome no perfil do Firebase assim que ele aparece pela
+   * primeira vez, pra não perdê-lo depois.
+   */
+  if (fullName && !result.user.displayName) {
+    await updateProfile(result.user, {
+      displayName: fullName,
+    });
+  }
+
+  await createUser({
+    uid: result.user.uid,
+    name:
+      fullName ??
+      result.user.displayName ??
+      "Usuário Apple",
+    email: result.user.email,
+    provider: "apple",
+  });
+
+  return result.user;
+};
+
 export const logout = async (): Promise<void> => {
   await signOut(auth);
 };
@@ -109,6 +161,10 @@ export const getAuthProvider = (
 
   if (providerId === "google.com") {
     return "google";
+  }
+
+  if (providerId === "apple.com") {
+    return "apple";
   }
 
   return "password";

@@ -20,8 +20,11 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 
 import {
+  loginWithApple,
   loginWithEmail,
   loginWithGoogle,
 } from "../services/authService";
@@ -44,6 +47,22 @@ const LoginScreen: FC<LoginScreenProps> = ({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+
+  const [isAppleAvailable, setIsAppleAvailable] =
+    useState<boolean>(false);
+
+  useEffect(() => {
+    // Sign in with Apple só existe no iOS. Em outras
+    // plataformas nem tentamos checar, pra não chamar um
+    // módulo nativo que não existe lá.
+    if (Platform.OS !== "ios") {
+      return;
+    }
+
+    AppleAuthentication.isAvailableAsync().then(
+      setIsAppleAvailable
+    );
+  }, []);
 
   const [request, response, promptAsync] =
     Google.useAuthRequest({
@@ -197,6 +216,81 @@ const LoginScreen: FC<LoginScreenProps> = ({
     }
   };
 
+  const handleAppleLogin = async (): Promise<void> => {
+    if (loading) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // A Apple exige um "nonce" pra evitar ataques de replay.
+      // Mandamos pra ela o hash (SHA-256) do nonce, e guardamos
+      // o valor original (rawNonce) pra provar ao Firebase que
+      // fomos nós que geramos esse hash.
+      const rawNonce = Crypto.randomUUID();
+
+      const hashedNonce =
+        await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          rawNonce
+        );
+
+      const appleCredential =
+        await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope
+              .FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope
+              .EMAIL,
+          ],
+          nonce: hashedNonce,
+        });
+
+      const { identityToken, fullName } =
+        appleCredential;
+
+      if (!identityToken) {
+        throw new Error(
+          "A Apple não retornou o identity token."
+        );
+      }
+
+      // A Apple só manda o nome no primeiro login; nas
+      // próximas vezes fullName vem null/undefined.
+      const displayName = fullName
+        ? [
+            fullName.givenName,
+            fullName.familyName,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || null
+        : null;
+
+      await loginWithApple(
+        identityToken,
+        rawNonce,
+        displayName
+      );
+    } catch (error: any) {
+      // Usuário cancelou o modal da Apple — não é um erro
+      // de verdade, não precisa mostrar alerta.
+      if (error?.code === "ERR_REQUEST_CANCELED") {
+        return;
+      }
+
+      console.error("Erro Apple:", error);
+
+      Alert.alert(
+        "Erro no login",
+        "Não foi possível entrar com a Apple."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
@@ -290,6 +384,22 @@ const LoginScreen: FC<LoginScreenProps> = ({
             </Text>
           )}
         </Pressable>
+
+        {isAppleAvailable && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={
+              AppleAuthentication
+                .AppleAuthenticationButtonType.SIGN_IN
+            }
+            buttonStyle={
+              AppleAuthentication
+                .AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={10}
+            style={styles.appleButton}
+            onPress={handleAppleLogin}
+          />
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -386,6 +496,11 @@ const styles = StyleSheet.create({
   googleText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  appleButton: {
+    height: 52,
+    marginTop: 12,
   },
 
   disabledButton: {

@@ -3,6 +3,7 @@ import type { ChatUser } from "../types/user";
 const ALLOWED_PROVIDERS = [
   "password",
   "google",
+  "apple",
 ] as const;
 
 export const isValidChatUser = (

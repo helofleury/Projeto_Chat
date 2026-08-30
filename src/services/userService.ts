@@ -71,6 +71,15 @@ export const listenToUserRecord = (
   return unsubscribe;
 };
 
+/**
+ * Quem é "compatível" pra virar parceiro de conversa.
+ *
+ * Regra do projeto: o e-mail/senha é sempre um dos dois lados
+ * da conversa. Google e Apple só conversam com quem logou por
+ * e-mail/senha — nunca entre si (Google ↔ Apple não é
+ * permitido) e nunca com o mesmo provider (nem e-mail↔e-mail,
+ * nem Google↔Google, nem Apple↔Apple).
+ */
 export const getCompatibleUsers = async (
   currentUser: ChatUser
 ): Promise<ChatUser[]> => {
@@ -81,14 +90,14 @@ export const getCompatibleUsers = async (
       return false;
     }
 
-    if (currentUser.provider === "password") {
-      return (
-        user.provider === "google" ||
-        user.provider === "password"
-      );
+    if (user.provider === currentUser.provider) {
+      return false;
     }
 
-    return user.provider === "password";
+    return (
+      currentUser.provider === "password" ||
+      user.provider === "password"
+    );
   });
 };
 
