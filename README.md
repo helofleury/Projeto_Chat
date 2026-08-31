@@ -231,13 +231,13 @@ Após iniciar o Expo, é necessário executar o aplicativo em **dois dispositivo
 
 ### 🔵 Usuário Google
 
-Exemplo de um usuário autenticado com uma conta Google realizando uma conversa 1 para 1 em tempo real com outro usuário.
+Exemplo de um usuário autenticado com uma conta Google realizando uma conversa 1 para 1 em tempo real com outro usuário autenticado com e-mail e senha.
 
 <img src="./assets/google-chat.png" alt="Usuário Google conversando" width="350"/>
 
 ### 📧 Usuário E-mail e Senha
 
-Exemplo de um usuário autenticado utilizando e-mail e senha realizando uma conversa 1 para 1 em tempo real com outro usuário.
+Exemplo de um usuário autenticado utilizando e-mail e senha realizando uma conversa 1 para 1 em tempo real com outro usuário autenticado com conta Google.
 
 <img src="./assets/email-chat.jpg" alt="Usuário E-mail e Senha conversando" width="350"/>
 
@@ -255,8 +255,8 @@ Tela de contatos exibindo os usuários disponíveis para iniciar uma conversa, r
   
 - **Juan Fuentes Rufino** - RM557673
 
-- **Rickelmyn de Souza Ruescas** - RM556055
-
 - **Paulo Henrique Monteiro Golovanevsky** - RM555300
 
 - **Pedro Henrique Silva Batista** - RM558137
+
+- **Rickelmyn de Souza Ruescas** - RM556055
